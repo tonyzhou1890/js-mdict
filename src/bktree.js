@@ -76,9 +76,11 @@ class BKTree {
       return;
     }
     const dist = edit_distance(this.rt.word, curr.word);
-    // console.log(this.rt.word, idx, dist);
+    if (dist === 0) {
+      return;
+    }
     // throw Error("stop");
-    if (this.tree[idx].next[dist] === -1) {
+    if (!this.tree[idx] || !this.tree[idx].next[dist] ||this.tree[idx].next[dist] === -1) {
       /* if no Node exists at this dist from root
        * make it child of root Node */
 
