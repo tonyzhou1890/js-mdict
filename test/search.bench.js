@@ -6,7 +6,7 @@ const suite = new Benchmark.Suite();
 
 // loading dictionary
 const startTime = new Date().getSeconds();
-const mdict = new Mdict('mdx/testdict/oale8.mdx');
+const mdict = new Mdict('mdx/testdict/oale8.mdx', { mode: 'mixed' });
 const endTime = new Date().getSeconds();
 // eslint-disable-next-line
 console.log(`Mdict#loading time: ${endTime - startTime} sec`);

@@ -9,6 +9,8 @@ import { TextDecoder } from 'text-encoding';
 
 import common from './common';
 import lzo1x from './lzo-wrapper';
+import { Trie } from './trie';
+import util from './utils'
 
 const UTF_16LE_DECODER = new TextDecoder('utf-16le');
 const UTF16 = 'UTF-16';
@@ -35,12 +37,14 @@ class MDictBase {
    * mdict constructor
    * @param {string} fname
    * @param {string} passcode
+   * @param {string} mode
    */
-  constructor(fname, passcode) {
+  constructor(fname, passcode, mode) {
     // the mdict file name
     this.fname = fname;
     // the dictionary file decrypt pass code
     this._passcode = passcode;
+    this.mode = mode;
     // the mdict file read offset
     this._offset = 0;
     // the dictionary file extension
@@ -85,11 +89,21 @@ class MDictBase {
     this._keyBlockStartOffset = 0;
     this._keyBlockEndOffset = 0;
     this.keyList = [];
-    // decodeKeyBlock method is very slow, avoid invoke dirctly
-    // this method will return the whole words list of the dictionaries file, this is very slow 
-    // operation, and you should do this background, or concurrently.
-    // NOTE: this method is wrapped by method medict.RangeWords();
-    // this._decodeKeyBlock();
+    if (this.ext === 'mdx' && this.mode === 'mixed') {
+      // decodeKeyBlock method is very slow, avoid invoke dirctly
+      // this method will return the whole words list of the dictionaries file, this is very slow 
+      // operation, and you should do this background, or concurrently.
+      // NOTE: this method is wrapped by method medict.RangeWords();
+      util.measureTime('decodeKeyBlock', this._decodeKeyBlock.bind(this), true)
+      // this._decodeKeyBlock(true);
+
+      // -------------------------
+      // dict key trie--stripKey and lowercase
+      // --------------------------
+      this.trie = new Trie()
+      util.measureTime('_buildTrie', this._buildTrie.bind(this), this.keyList)
+      // this._buildTrie(this.keyList)
+    }
 
     // -------------------------
     // dict record header section
@@ -227,7 +241,7 @@ class MDictBase {
     } else {
       this._encoding =
         this.header.Encoding.toLowerCase() == 'utf16' ||
-        this.header.Encoding.toLowerCase() == 'utf-16'
+          this.header.Encoding.toLowerCase() == 'utf-16'
           ? UTF16
           : UTF8;
       if (this._encoding == UTF16) {
@@ -569,7 +583,7 @@ class MDictBase {
       mid = left + ((right - left) >> 1);
       if (
         compareFn(_s(phrase), _s(this.keyBlockInfoList[mid].firstKey)) >=
-          0 &&
+        0 &&
         compareFn(_s(phrase), _s(this.keyBlockInfoList[mid].lastKey)) <= 0
       ) {
         return mid;
@@ -665,6 +679,27 @@ class MDictBase {
   }
 
   /**
+   * build trie
+   * @param {array} list 
+   * @returns 
+   */
+  _buildTrie(list) {
+    let key = ''
+    let regexp = common.REGEXP_STRIPKEY[this.ext]
+    for (let i = 0; i < list.length; i++) {
+      if (this.ext === 'mdx') {
+        key = list[i].keyText.replace(regexp, '$1').toLowerCase()
+      } else {
+        key = list[i].keyText
+      }
+      if (i < list.length - 1) {
+        list[i].nextRecordStartOffset = list[i + 1].recordStartOffset
+      }
+      this.trie.insert(key, list[i])
+    }
+  }
+
+  /**
    * decode key block by key block id (from key info list)
    * @param {*} kbid key block id
    */
@@ -755,14 +790,14 @@ class MDictBase {
       let i = keyStartIndex + this._numWidth;
       while (i < keyBlock.length) {
         // delimiter = '0' 
-        if ((width === 1 && keyBlock.get(i) == 0) 
-        // delimiter = '00'
-        || (width === 2 && keyBlock.get(i) == 0 && keyBlock.get(i+1) == 0)){
+        if ((width === 1 && keyBlock.get(i) == 0)
+          // delimiter = '00'
+          || (width === 2 && keyBlock.get(i) == 0 && keyBlock.get(i + 1) == 0)) {
           //// the method below was very slow, depreate
-        // if (
-        //   new BufferList(keyBlock.slice(i, i + width)).toString('hex') ==
-        //   delimiter
-        // ) {
+          // if (
+          //   new BufferList(keyBlock.slice(i, i + width)).toString('hex') ==
+          //   delimiter
+          // ) {
           keyEndIndex = i;
           break;
         }

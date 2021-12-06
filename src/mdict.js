@@ -10,30 +10,39 @@ import common from './common';
 
 class Mdict extends MdictBase {
   constructor(fname, searchOptions = {}) {
-    const passcode = searchOptions.passcode || undefined;
-    super(fname, passcode);
+    const passcode = searchOptions.passcode ?? undefined;
+    // 模式，目前只支持 mixed。
+    // 当处于此模式，mdx 文件将构建字典树，lookup 返回值将会是数组。
+    // 如果有完全匹配的单词，数组第一个就是，否则都是 stripKey 并且 lowercase 下的匹配。
+    const mode = searchOptions.mode
+    super(fname, passcode, mode);
     this.searchOptions = {};
     searchOptions = searchOptions || {};
-    this.searchOptions.passcode = searchOptions.passcode || undefined;
+    this.searchOptions.passcode = searchOptions.passcode ?? undefined;
     this.searchOptions.keyCaseSensitive = searchOptions.keyCaseSensitive;
     this.searchOptions.stripKey = searchOptions.stripKey;
   }
 
   _stripKey() {
     const stripKey =
-      this.searchOptions.stripKey || common.isTrue(this.header.StripKey);
+      this.searchOptions.stripKey ?? common.isTrue(this.header.StripKey);
     const regexp = common.REGEXP_STRIPKEY[this.ext];
 
     return stripKey
       ? function _s(key) {
-          return key.replace(regexp, '$1');
-        }
+        return key.replace(regexp, '$1');
+      }
       : function _s(key) {
-          return key;
-        };
+        return key;
+      };
   }
 
   lookup(word) {
+    // mdx 的 mixed 模式返回 stripKey 并且 lowercase 的所有单词列表
+    if (this.ext === 'mdx' && this.mode === 'mixed') {
+      return this._lookupMixed(word)
+    }
+
     const record = this._lookupKID(word);
 
     // if not found the key block, return undefined
@@ -51,10 +60,10 @@ class Mdict extends MdictBase {
     const nextStart =
       i + 1 >= list.length
         ? this._recordBlockStartOffset +
-          this.recordBlockInfoList[this.recordBlockInfoList.length - 1]
-            .decompAccumulator +
-          this.recordBlockInfoList[this.recordBlockInfoList.length - 1]
-            .decompSize
+        this.recordBlockInfoList[this.recordBlockInfoList.length - 1]
+          .decompAccumulator +
+        this.recordBlockInfoList[this.recordBlockInfoList.length - 1]
+          .decompSize
         : list[i + 1].recordStartOffset;
     const data = this._decodeRecordBlockByRBID(
       rid,
@@ -65,16 +74,57 @@ class Mdict extends MdictBase {
     return data;
   }
 
+  // return stripKey and lowercase list
+  _lookupMixed(word) {
+    let recordList = []
+    if (this.ext === 'mdx') {
+      const regexp = common.REGEXP_STRIPKEY[this.ext]
+      recordList = this.trie.lookup((word ?? '').replace(regexp, '$1').toLowerCase()) ?? []
+    } else {
+      recordList = this.trie.lookup(word ?? '') ?? []
+    }
+
+    // if not found the key block, return undefined
+    if (recordList.length === 0) {
+      return []
+    }
+
+    // justify word order and decode record
+    const _recordList = []
+    for (let i = 0; i < recordList.length; i++) {
+      const rid = this._reduceRecordBlock(recordList[i].recordStartOffset)
+      const nextStart = recordList[i].nextRecordStartOffset ?? this._recordBlockStartOffset +
+        this.recordBlockInfoList[this.recordBlockInfoList.length - 1]
+          .decompAccumulator +
+        this.recordBlockInfoList[this.recordBlockInfoList.length - 1]
+          .decompSize
+      const record = this._decodeRecordBlockByRBID(
+        rid,
+        recordList[i].keyText,
+        recordList[i].recordStartOffset,
+        nextStart
+      )
+      // justify order
+      if (record.keyText === word) {
+        _recordList.unshift(record)
+      } else {
+        _recordList.push(record)
+      }
+    }
+
+    return _recordList
+  }
+
   _isKeyCaseSensitive() {
     return (
       this.searchOptions.keyCaseSensitive ||
       common.isTrue(this.header.KeyCaseSensitive)
     );
-  } 
+  }
 
 
   _lookupRecordBlockWordList(word) {
-      const lookupInternal = (compareFn) => {
+    const lookupInternal = (compareFn) => {
       const sfunc = this._stripKey();
       const kbid = this._reduceWordKeyBlock(word, sfunc, compareFn);
       // not found
@@ -187,7 +237,7 @@ class Mdict extends MdictBase {
    * @param {string} phrase the word which needs to find prefix
    */
   prefix(phrase) {
-    const list = this._findList(phrase).list;
+    const list = this._findList(phrase)?.list;
     if (!list) {
       return [];
     }
@@ -353,10 +403,10 @@ class Mdict extends MdictBase {
     const nextStart =
       idx + 1 >= list.length
         ? this._recordBlockStartOffset +
-          this.recordBlockInfoList[this.recordBlockInfoList.length - 1]
-            .decompAccumulator +
-          this.recordBlockInfoList[this.recordBlockInfoList.length - 1]
-            .decompSize
+        this.recordBlockInfoList[this.recordBlockInfoList.length - 1]
+          .decompAccumulator +
+        this.recordBlockInfoList[this.recordBlockInfoList.length - 1]
+          .decompSize
         : list[idx + 1].recordStartOffset;
     let startoffset = list[idx].recordStartOffset
     if (rstartofset != startoffset) {
@@ -374,7 +424,7 @@ class Mdict extends MdictBase {
   }
 
   rangeKeyWords() {
-     return this._decodeKeyBlock();
+    return this._decodeKeyBlock();
   }
 
 }
