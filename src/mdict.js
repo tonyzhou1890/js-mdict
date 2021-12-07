@@ -8,6 +8,8 @@ import dart from 'doublearray';
 import MdictBase from './mdict-base';
 import common from './common';
 
+import util from './utils'
+
 class Mdict extends MdictBase {
   constructor(fname, searchOptions = {}) {
     const passcode = searchOptions.passcode ?? undefined;
@@ -77,12 +79,10 @@ class Mdict extends MdictBase {
   // return stripKey and lowercase list
   _lookupMixed(word) {
     let recordList = []
-    if (this.ext === 'mdx') {
-      const regexp = common.REGEXP_STRIPKEY[this.ext]
-      recordList = this.trie.lookup((word ?? '').replace(regexp, '$1').toLowerCase()) ?? []
-    } else {
-      recordList = this.trie.lookup(word ?? '') ?? []
-    }
+
+    const regexp = common.REGEXP_STRIPKEY[this.ext]
+    const key = (word ?? '').replace(regexp, '$1').toLowerCase()
+    recordList = this.trie.lookup(key) ?? []
 
     // if not found the key block, return undefined
     if (recordList.length === 0) {
@@ -93,7 +93,7 @@ class Mdict extends MdictBase {
     const _recordList = []
     for (let i = 0; i < recordList.length; i++) {
       const rid = this._reduceRecordBlock(recordList[i].recordStartOffset)
-      const nextStart = recordList[i].nextRecordStartOffset ?? this._recordBlockStartOffset +
+      const nextStart = recordList[i].endOffset ?? this._recordBlockStartOffset +
         this.recordBlockInfoList[this.recordBlockInfoList.length - 1]
           .decompAccumulator +
         this.recordBlockInfoList[this.recordBlockInfoList.length - 1]
@@ -111,6 +111,26 @@ class Mdict extends MdictBase {
         _recordList.push(record)
       }
     }
+    // for (let i = 0; i < recordList.length; i++) {
+    //   const rid = this._reduceRecordBlock(recordList[i][0])
+    //   const nextStart = recordList[i][1] ?? this._recordBlockStartOffset +
+    //     this.recordBlockInfoList[this.recordBlockInfoList.length - 1]
+    //       .decompAccumulator +
+    //     this.recordBlockInfoList[this.recordBlockInfoList.length - 1]
+    //       .decompSize
+    //   const record = this._decodeRecordBlockByRBID(
+    //     rid,
+    //     util.uint32ToStr(recordList[i].slice(2)),
+    //     recordList[i][0],
+    //     nextStart
+    //   )
+    //   // justify order
+    //   if (record.keyText === word) {
+    //     _recordList.unshift(record)
+    //   } else {
+    //     _recordList.push(record)
+    //   }
+    // }
 
     return _recordList
   }

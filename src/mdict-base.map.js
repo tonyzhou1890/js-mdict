@@ -9,7 +9,6 @@ import { TextDecoder } from 'text-encoding';
 
 import common from './common';
 import lzo1x from './lzo-wrapper';
-import { Trie } from './trie';
 import util from './utils'
 
 const UTF_16LE_DECODER = new TextDecoder('utf-16le');
@@ -89,7 +88,7 @@ class MDictBase {
     this._keyBlockStartOffset = 0;
     this._keyBlockEndOffset = 0;
     if (this.ext === 'mdx' && this.mode === 'mixed') {
-      util.consoleMem('pre trie')
+      util.consoleMem('pre map')
       this.keyList = [];
       // decodeKeyBlock method is very slow, avoid invoke dirctly
       // this method will return the whole words list of the dictionaries file, this is very slow 
@@ -99,13 +98,13 @@ class MDictBase {
       // this._decodeKeyBlock(true);
 
       // -------------------------
-      // dict key trie--stripKey and lowercase
+      // dict key map--stripKey and lowercase
       // --------------------------
-      this.trie = new Trie()
-      util.consoleMem('after trie')
-      util.measureTime('_buildTrie', this._buildTrie.bind(this), this.keyList)
-      // this._buildTrie(this.keyList)
-      util.consoleMem('after trie')
+      this.keyMap = new Map()
+      util.consoleMem('after map')
+      util.measureTime('_buildKeyMap', this._buildKeyMap.bind(this), this.keyList)
+      util.consoleMem('after map')
+      // this._buildKeyMap(this.keyList)
       console.log('file: ', this.fname)
       console.log('entris: ', this.keyHeader.entriesNum)
     }
@@ -701,6 +700,59 @@ class MDictBase {
         list[i].endOffset = list[i + 1].recordStartOffset
       }
       this.trie.insert(key, list[i])
+    }
+  }
+
+  /**
+   * build key map
+   * @param {array} list 
+   * @returns 
+   */
+  // _buildKeyMap(list) {
+  //   let key = ''
+  //   let regexp = common.REGEXP_STRIPKEY[this.ext]
+  //   for (let i = 0; i < list.length; i++) {
+  //     if (this.ext === 'mdx') {
+  //       key = list[i].keyText.replace(regexp, '$1').toLowerCase()
+  //     } else {
+  //       key = list[i].keyText
+  //     }
+  //     if (i < list.length - 1) {
+  //       list[i].endOffset = list[i + 1].recordStartOffset
+  //     }
+  //     // 需要判断为数组，因为对象里有一些默认属性和方法。比如 constructor
+  //     if (Array.isArray(this.keyMap[key])) {
+  //       this.keyMap[key].push(list[i])
+  //     } else {
+  //       this.keyMap[key] = [list[i]]
+  //     }
+  //   }
+  // }
+  _buildKeyMap(list) {
+    let key = ''
+    let regexp = common.REGEXP_STRIPKEY[this.ext]
+
+    for (let i = 0; i < list.length; i++) {
+      if (this.ext === 'mdx') {
+        key = list[i].keyText.replace(regexp, '$1').toLowerCase()
+      } else {
+        key = list[i].keyText
+      }
+      if (i < list.length - 1) {
+        list[i].endOffset = list[i + 1].recordStartOffset
+      }
+      // 转 buffer
+      list[i] = new Uint32Array([
+        list[i].recordStartOffset,
+        list[i].endOffset,
+        ...util.strToUint32(list[i].keyText)
+      ])
+
+      if (this.keyMap.has(key)) {
+        this.keyMap.get(key).push(list[i])
+      } else {
+        this.keyMap.set(key, [list[i]])
+      }
     }
   }
 

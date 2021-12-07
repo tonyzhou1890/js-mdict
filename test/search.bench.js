@@ -6,7 +6,8 @@ const suite = new Benchmark.Suite();
 
 // loading dictionary
 const startTime = new Date().getSeconds();
-const mdict = new Mdict('mdx/testdict/oale8.mdx', { mode: 'mixed' });
+// const mdict = new Mdict('mdx/testdict/oale8.mdx', { mode: 'mixed' });
+const mdict = new Mdict('mdx/testdict/简明英汉汉英词典.mdx', { mode: 'mixed' });
 const endTime = new Date().getSeconds();
 // eslint-disable-next-line
 console.log(`Mdict#loading time: ${endTime - startTime} sec`);
@@ -14,7 +15,7 @@ console.log(`Mdict#loading time: ${endTime - startTime} sec`);
 // add tests
 suite
   .add('Mdict#lookup', () => {
-    mdict.lookup('incited');
+    mdict.lookup('zoo');
   })
   .add('Mdict#prefix', () => {
     mdict.prefix('incited');
