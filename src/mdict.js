@@ -82,7 +82,7 @@ class Mdict extends MdictBase {
 
     const regexp = common.REGEXP_STRIPKEY[this.ext]
     const key = (word ?? '').replace(regexp, '$1').toLowerCase()
-    recordList = this.trie.lookup(key) ?? []
+    recordList = this.keyMap.lookup(key) ?? []
 
     // if not found the key block, return undefined
     if (recordList.length === 0) {
@@ -93,7 +93,7 @@ class Mdict extends MdictBase {
     const _recordList = []
     for (let i = 0; i < recordList.length; i++) {
       const rid = this._reduceRecordBlock(recordList[i].recordStartOffset)
-      const nextStart = recordList[i].endOffset ?? this._recordBlockStartOffset +
+      const nextStart = recordList[i].nextRecordStartOffset ?? this._recordBlockStartOffset +
         this.recordBlockInfoList[this.recordBlockInfoList.length - 1]
           .decompAccumulator +
         this.recordBlockInfoList[this.recordBlockInfoList.length - 1]

@@ -9,7 +9,7 @@ import { TextDecoder } from 'text-encoding';
 
 import common from './common';
 import lzo1x from './lzo-wrapper';
-import { Trie } from './trie';
+import { WordMapBuffer } from './wordMapBuffer';
 import util from './utils'
 
 const UTF_16LE_DECODER = new TextDecoder('utf-16le');
@@ -89,23 +89,17 @@ class MDictBase {
     this._keyBlockStartOffset = 0;
     this._keyBlockEndOffset = 0;
     if (this.ext === 'mdx' && this.mode === 'mixed') {
-      util.consoleMem('pre trie')
+      util.consoleMem('pre map: ')
+      this.keyMap = new WordMapBuffer()
       this.keyList = [];
       // decodeKeyBlock method is very slow, avoid invoke dirctly
       // this method will return the whole words list of the dictionaries file, this is very slow 
       // operation, and you should do this background, or concurrently.
       // NOTE: this method is wrapped by method medict.RangeWords();
-      util.measureTime('decodeKeyBlock', this._decodeKeyBlock.bind(this), true)
+      util.measureTime('decodeKeyBlock', this._decodeKeyBlock.bind(this))
       // this._decodeKeyBlock(true);
 
-      // -------------------------
-      // dict key trie--stripKey and lowercase
-      // --------------------------
-      this.trie = new Trie()
-      util.consoleMem('after trie')
-      util.measureTime('_buildTrie', this._buildTrie.bind(this), this.keyList)
-      // this._buildTrie(this.keyList)
-      util.consoleMem('after trie')
+      util.consoleMem('after map: ')
       console.log('file: ', this.fname)
       console.log('entris: ', this.keyHeader.entriesNum)
     }
@@ -619,6 +613,7 @@ class MDictBase {
     );
 
     let key_list = [];
+    let keyCount = 0
     let kbStartOfset = 0;
     // harvest keyblocks
     for (let idx = 0; idx < this.keyBlockInfoList.length; idx++) {
@@ -664,43 +659,18 @@ class MDictBase {
           `cannot determine the compress type: ${kbCompType.toString('hex')}`
         );
       }
-      const splitedKey = this._splitKeyBlock(
+      keyCount += this._splitKeyBlock(
         new BufferList(key_block),
-        this._numFmt,
-        this._numWidth,
-        this._encoding
       );
-      key_list = key_list.concat(splitedKey);
       kbStartOfset += compSize;
     }
-    assert(key_list.length === this.keyHeader.entriesNum);
+    assert(keyCount === this.keyHeader.entriesNum);
     this._keyBlockEndOffset =
       this._keyBlockStartOffset + this.keyHeader.keyBlocksTotalSize;
     if (keep) {
       this.keyList = key_list;
     } else {
       return key_list;
-    }
-  }
-
-  /**
-   * build trie
-   * @param {array} list 
-   * @returns 
-   */
-  _buildTrie(list) {
-    let key = ''
-    let regexp = common.REGEXP_STRIPKEY[this.ext]
-    for (let i = 0; i < list.length; i++) {
-      if (this.ext === 'mdx') {
-        key = list[i].keyText.replace(regexp, '$1').toLowerCase()
-      } else {
-        key = list[i].keyText
-      }
-      if (i < list.length - 1) {
-        list[i].endOffset = list[i + 1].recordStartOffset
-      }
-      this.trie.insert(key, list[i])
     }
   }
 
@@ -752,9 +722,7 @@ class MDictBase {
     }
     const splitedKey = this._splitKeyBlock(
       new BufferList(key_block),
-      this._numFmt,
-      this._numWidth,
-      this._encoding
+      true
     );
     return splitedKey;
   }
@@ -764,7 +732,7 @@ class MDictBase {
    * split key from key block buffer
    * @param {Buffer} keyBlock key block buffer
    */
-  _splitKeyBlock(keyBlock) {
+  _splitKeyBlock(keyBlock, needList) {
     let delimiter;
     let width;
     if (this._encoding == 'UTF-16' || this.ext == 'mdd') {
@@ -775,6 +743,7 @@ class MDictBase {
       width = 1;
     }
     const keyList = [];
+    let keyCount = 0
     let keyStartIndex = 0;
     let keyEndIndex = 0;
 
@@ -812,9 +781,18 @@ class MDictBase {
         keyBlock.slice(keyStartIndex + this._numWidth, keyEndIndex)
       );
       keyStartIndex = keyEndIndex + width;
-      keyList.push({ recordStartOffset, keyText });
+
+      if (this.ext === 'mdx' && this.mode === 'mixed') {
+        const regexp = common.REGEXP_STRIPKEY[this.ext]
+        const key = (keyText ?? '').replace(regexp, '$1').toLowerCase()
+        this.keyMap.insert(key, keyText, recordStartOffset)
+      }
+      keyCount++
+      if (needList) {
+        keyList.push({ recordStartOffset, keyText });
+      }
     }
-    return keyList;
+    return needList ? keyList : keyCount
   }
 
   /**
