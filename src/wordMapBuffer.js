@@ -1,3 +1,5 @@
+import util from './utils'
+
 // wordMapBuffer
 export class WordMapBuffer {
   constructor(blockSize = 1_000_000) {
@@ -8,22 +10,22 @@ export class WordMapBuffer {
   }
 
   insert(key, str, offset) {
-    const arr = [...str]
-    if (arr.length > this.blockSize - 1) {
+    if ((str.length * 4) > this.blockSize - 1) {
       return -1
     }
 
     // 添加到 buffer
-    if (this.bufferList.length === 0 || arr.length > (this.blockSize - this.blockIndex - 1)) {
-      this.bufferList.push(new Uint32Array(this.blockSize))
+    if (this.bufferList.length === 0 || (str.length * 4) > (this.blockSize - this.blockIndex - 1)) {
+      this.bufferList.push(new Uint8Array(this.blockSize))
       this.blockIndex = 0
     }
     const buffer = this.bufferList[this.bufferList.length - 1]
     const startOffset = this.blockIndex + (this.bufferList.length - 1) * this.blockSize
-    buffer[this.blockIndex++] = offset
-    for (let i = 0; i < arr.length; i++) {
-      buffer[this.blockIndex++] = arr[i].codePointAt(0)
-    }
+
+    util.numToUint8(offset, buffer, this.blockIndex)
+    this.blockIndex += 4
+
+    this.blockIndex = util.textEncode(str, buffer, this.blockIndex)
     // 空一格作为分隔符（0）
     this.blockIndex++
 
@@ -56,17 +58,22 @@ export class WordMapBuffer {
 
       let blockIndex = offset % this.blockSize
       let keyInfo = {
-        recordStartOffset: buffer[blockIndex++],
+        recordStartOffset: util.uint8ToNum(buffer, blockIndex),
         keyText: ''
       }
+      blockIndex += 4
+
+      const start = blockIndex
       while (buffer[blockIndex]) {
-        keyInfo.keyText += String.fromCodePoint(buffer[blockIndex++])
+        blockIndex++
       }
-      if (buffer[blockIndex + 1]) {
-        keyInfo.nextRecordStartOffset = buffer[blockIndex + 1]
+      keyInfo.keyText = util.textDecode(buffer, start, blockIndex - start)
+      // 跳过偏移数字，判断接下来有没有字符转的 uint8
+      if (buffer[blockIndex + 5]) {
+        keyInfo.nextRecordStartOffset = util.uint8ToNum(buffer, blockIndex + 1)
       } else {
         if (this.bufferList[bufferIndex + 1]) {
-          keyInfo.nextRecordStartOffset = this.bufferList[bufferIndex + 1][0]
+          keyInfo.nextRecordStartOffset = util.uint8ToNum(this.bufferList[bufferIndex + 1])
         }
       }
 

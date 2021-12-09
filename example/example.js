@@ -3,7 +3,7 @@ import Mdict from '../src/mdict';
 // Note: *.mdd file only support lookup method.
 
 // loading dictionary
-const dict = new Mdict('mdx/testdict/oale8.mdx');
+const dict = new Mdict('mdx/testdict/oale8.mdx', { mode: 'mixed' });
 // console.log(mdict.lookup('interactive'));
 // console.log(mdict.bsearch('interactive'));
 // console.log(mdict.fuzzy_search('interactive', 5));
