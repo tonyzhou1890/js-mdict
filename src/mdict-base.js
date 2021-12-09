@@ -5,7 +5,9 @@ import assert from 'assert';
 import BufferList from 'bl';
 import pako from 'pako';
 import bufferToArrayBuffer from 'buffer-to-arraybuffer';
-import { TextDecoder } from 'text-encoding';
+
+// 不使用第三方，直接使用 v8 自带 TextDecoder，降低内存占用
+// import { TextDecoder } from 'text-encoding';
 
 import common from './common';
 import lzo1x from './lzo-wrapper';

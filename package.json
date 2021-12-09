@@ -9,6 +9,7 @@
     "temp": "npm run build && mocha --require @babel/register test/temp-debug.spec.js",
     "benchDecodeKeyBlock": "npm run build && mocha --require @babel/register test/decodeKeyBlock.bench.js",
     "benchSearch": "npm run build && mocha --require @babel/register test/search.bench.js",
+    "benchSearchMem": "npm run build && mocha --require @babel/register test/search.mem.bench.js",
     "test": "npm run build && mocha --require @babel/register test/*.spec.js",
     "coverage": "npm run build && nyc mocha --require @babel/register",
     "jest": "npm run build && jest test/*.spec.js",

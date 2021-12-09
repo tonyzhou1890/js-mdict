@@ -1,5 +1,6 @@
 import BufferList from 'bl';
-import { TextDecoder } from 'text-encoding';
+// 不使用第三方，直接使用 v8 自带 TextDecoder，降低内存占用
+// import { TextDecoder } from 'text-encoding';
 import { DOMParser } from '@xmldom/xmldom';
 import ripemd128 from './ripemd128';
 
