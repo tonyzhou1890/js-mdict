@@ -1,6 +1,6 @@
 {
-  "name": "js-mdict",
-  "version": "4.1.0",
+  "name": "mdict-js",
+  "version": "0.0.1",
   "description": "mdict (*.mdx, *.mdd) file reader",
   "main": "lib/mdict.js",
   "types": "typings/mdict.d.ts",
@@ -17,7 +17,7 @@
     "eslint": "eslint src",
     "example": "babel-node example/example.js"
   },
-  "repository": "git+https://github.com/terasum/js-mdict.git",
+  "repository": "git+https://github.com/tonyzhou1890/js-mdict.git",
   "keywords": [
     "mdict",
     "dictionary",
@@ -26,12 +26,12 @@
     "vocabulary",
     "borwser"
   ],
-  "author": "terasum <terasum@163.com>",
+  "author": "tony",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/terasum/js-mdict/issues"
+    "url": "https://github.com/tonyzhou1890/js-mdict/issues"
   },
-  "homepage": "https://github.com/terasum/js-mdict#readme",
+  "homepage": "https://github.com/tonyzhou1890/js-mdict#readme",
   "dependencies": {
     "@babel/runtime": "^7.14.6",
     "bl": "^2.2.1",
@@ -54,7 +54,7 @@
     "@xmldom/xmldom": "^0.7.5"
   },
   "engines": {
-    "node": ">=3.0.0"
+    "node": ">=12.0.0"
   },
   "devDependencies": {
     "@babel/cli": "^7.14.5",
