@@ -14,7 +14,7 @@ class Mdict extends MdictBase {
   constructor(fname, searchOptions = {}) {
     const passcode = searchOptions.passcode ?? undefined;
     // 模式，目前只支持 mixed。
-    // 当处于此模式，mdx 文件将构建字典树，lookup 返回值将会是数组。
+    // 当处于此模式，mdx 文件 lookup 返回值将会是数组。
     // 如果有完全匹配的单词，数组第一个就是，否则都是 stripKey 并且 lowercase 下的匹配。
     const mode = searchOptions.mode
     super(fname, passcode, mode);
@@ -74,6 +74,18 @@ class Mdict extends MdictBase {
       nextStart
     );
     return data;
+  }
+
+  /**
+   * return all words
+   * @returns 
+   */
+  keys() {
+    if (this.ext === 'mdx' && this.mode === 'mixed') {
+      return this.keyMap.keys()
+    }
+
+    return []
   }
 
   // return stripKey and lowercase list
