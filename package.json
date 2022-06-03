@@ -12,6 +12,7 @@
     "benchSearchMem": "npm run build && mocha --require @babel/register test/search.mem.bench.js",
     "benchKeys": "npm run build && mocha --require @babel/register test/keys.bench.js",
     "benchEntries": "npm run build && mocha --require @babel/register test/entries.bench.js",
+    "benchIsExist": "npm run build && mocha --require @babel/register test/isExist.bench.js",
     "test": "npm run build && mocha --require @babel/register test/*.spec.js",
     "coverage": "npm run build && nyc mocha --require @babel/register",
     "jest": "npm run build && jest test/*.spec.js",

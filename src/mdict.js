@@ -88,6 +88,29 @@ class Mdict extends MdictBase {
     return []
   }
 
+  /**
+   * isExist
+   * Whether the word exists
+   * @param {string} word
+   * @returns bool
+   */
+  isExist(word) {
+    // mdx 的 mixed 模式返回 stripKey 并且 lowercase 的所有单词列表
+    if (this.ext === 'mdx' && this.mode === 'mixed') {
+      let recordList = []
+
+      const regexp = common.REGEXP_STRIPKEY[this.ext]
+      const key = (word ?? '').replace(regexp, '$1').toLowerCase()
+      recordList = this.keyMap.lookup(key) ?? []
+
+      return !!recordList.length
+    }
+
+    const record = this._lookupKID(word)
+
+    return !!record
+  }
+
   // return stripKey and lowercase list
   _lookupMixed(word) {
     let recordList = []
@@ -123,26 +146,6 @@ class Mdict extends MdictBase {
         _recordList.push(record)
       }
     }
-    // for (let i = 0; i < recordList.length; i++) {
-    //   const rid = this._reduceRecordBlock(recordList[i][0])
-    //   const nextStart = recordList[i][1] ?? this._recordBlockStartOffset +
-    //     this.recordBlockInfoList[this.recordBlockInfoList.length - 1]
-    //       .decompAccumulator +
-    //     this.recordBlockInfoList[this.recordBlockInfoList.length - 1]
-    //       .decompSize
-    //   const record = this._decodeRecordBlockByRBID(
-    //     rid,
-    //     util.uint32ToStr(recordList[i].slice(2)),
-    //     recordList[i][0],
-    //     nextStart
-    //   )
-    //   // justify order
-    //   if (record.keyText === word) {
-    //     _recordList.unshift(record)
-    //   } else {
-    //     _recordList.push(record)
-    //   }
-    // }
 
     return _recordList
   }
