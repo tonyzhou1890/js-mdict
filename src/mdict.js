@@ -8,16 +8,10 @@ import dart from 'doublearray';
 import MdictBase from './mdict-base';
 import common from './common';
 
-import util from './utils'
-
 class Mdict extends MdictBase {
   constructor(fname, searchOptions = {}) {
     const passcode = searchOptions.passcode ?? undefined;
-    // 模式，目前只支持 mixed。
-    // 当处于此模式，mdx 文件 lookup 返回值将会是数组。
-    // 如果有完全匹配的单词，数组第一个就是，否则都是 stripKey 并且 lowercase 下的匹配。
-    const mode = searchOptions.mode
-    super(fname, passcode, mode);
+    super(fname, passcode, searchOptions);
     this.searchOptions = {};
     searchOptions = searchOptions || {};
     this.searchOptions.passcode = searchOptions.passcode ?? undefined;
@@ -40,9 +34,9 @@ class Mdict extends MdictBase {
   }
 
   lookup(word) {
-    // mdx 的 mixed 模式返回 stripKey 并且 lowercase 的所有单词列表
-    if (this.ext === 'mdx' && this.mode === 'mixed') {
-      return this._lookupMixed(word)
+    // mdx 的 key 缓存在 buffer 中，所以使用 _lookupMdx 查找
+    if (this.ext === 'mdx') {
+      return this._lookupMdx(word)
     }
 
     const record = this._lookupKID(word);
@@ -81,8 +75,8 @@ class Mdict extends MdictBase {
    * @returns 
    */
   keys() {
-    if (this.ext === 'mdx' && this.mode === 'mixed') {
-      return this.keyMap.keys()
+    if (this.ext === 'mdx') {
+      return this.keyBuffer.keys()
     }
 
     return []
@@ -94,60 +88,43 @@ class Mdict extends MdictBase {
    * @param {string} word
    * @returns bool
    */
-  isExist(word) {
-    // mdx 的 mixed 模式返回 stripKey 并且 lowercase 的所有单词列表
-    if (this.ext === 'mdx' && this.mode === 'mixed') {
-      let recordList = []
-
-      const regexp = common.REGEXP_STRIPKEY[this.ext]
-      const key = (word ?? '').replace(regexp, '$1').toLowerCase()
-      recordList = this.keyMap.lookup(key) ?? []
-
-      return !!recordList.length
+  isExist(key) {
+    // mdx 处理
+    if (this.ext === 'mdx') {
+      return !!this.keyBuffer.lookupByStr(key)
     }
 
-    const record = this._lookupKID(word)
+    const record = this._lookupKID(key)
 
     return !!record
   }
 
-  // return stripKey and lowercase list
-  _lookupMixed(word) {
-    let recordList = []
+  // 从 keyBuffer 查找
+  _lookupMdx(key) {
+    let record = this.keyBuffer.lookupByStr(key)
 
-    const regexp = common.REGEXP_STRIPKEY[this.ext]
-    const key = (word ?? '').replace(regexp, '$1').toLowerCase()
-    recordList = this.keyMap.lookup(key) ?? []
-
-    // if not found the key block, return undefined
-    if (recordList.length === 0) {
-      return []
+    // if not found, return
+    if (!record) {
+      return {
+        keyText: key,
+        definition: null,
+      };
     }
 
-    // justify word order and decode record
-    const _recordList = []
-    for (let i = 0; i < recordList.length; i++) {
-      const rid = this._reduceRecordBlock(recordList[i].recordStartOffset)
-      const nextStart = recordList[i].nextRecordStartOffset ?? this._recordBlockStartOffset +
-        this.recordBlockInfoList[this.recordBlockInfoList.length - 1]
-          .decompAccumulator +
-        this.recordBlockInfoList[this.recordBlockInfoList.length - 1]
-          .decompSize
-      const record = this._decodeRecordBlockByRBID(
-        rid,
-        recordList[i].keyText,
-        recordList[i].recordStartOffset,
-        nextStart
-      )
-      // justify order
-      if (record.keyText === word) {
-        _recordList.unshift(record)
-      } else {
-        _recordList.push(record)
-      }
-    }
+    const rid = this._reduceRecordBlock(record.recordStartOffset)
+    const nextStart = record.nextRecordStartOffset || this._recordBlockStartOffset +
+      this.recordBlockInfoList[this.recordBlockInfoList.length - 1]
+        .decompAccumulator +
+      this.recordBlockInfoList[this.recordBlockInfoList.length - 1]
+        .decompSize
+    record = this._decodeRecordBlockByRBID(
+      rid,
+      record.keyText,
+      record.recordStartOffset,
+      nextStart
+    )
 
-    return _recordList
+    return record
   }
 
   _isKeyCaseSensitive() {

@@ -131,10 +131,11 @@ function textDecode(buffer, offset, length) {
  * @returns 
  */
 function numToUint8(num, buffer = new Uint8Array(4), offset = 0) {
-  buffer[offset] = (num >> 24) & 0xff
-  buffer[offset + 1] = (num >> 16) & 0xff
-  buffer[offset + 2] = (num >> 8) & 0xff
-  buffer[offset + 3] = (num) & 0xff
+  buffer[offset] = (num >> 28) & 0xff | 0x80
+  buffer[offset + 1] = (num >> 21) & 0xff | 0x80
+  buffer[offset + 2] = (num >> 14) & 0xff | 0x80
+  buffer[offset + 3] = (num >> 7) & 0xff | 0x80
+  buffer[offset + 4] = (num) & 0xff | 0x80
   return buffer
 }
 
@@ -146,10 +147,11 @@ function numToUint8(num, buffer = new Uint8Array(4), offset = 0) {
  */
 function uint8ToNum(buffer, offset = 0) {
   return (
-    (buffer[offset] << 24) +
-    (buffer[offset + 1] << 16) +
-    (buffer[offset + 2] << 8) +
-    (buffer[offset + 3])
+    ((buffer[offset] & 0x7f) << 28) +
+    ((buffer[offset + 1] & 0x7f) << 21) +
+    ((buffer[offset + 2] & 0x7f) << 14) +
+    ((buffer[offset + 3] & 0x7f) << 7) +
+    (buffer[offset + 4] & 0x7f)
   )
 }
 

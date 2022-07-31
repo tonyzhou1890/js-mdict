@@ -185,7 +185,7 @@ describe('MultDictionary', () => {
       'mdx/testdict/dict-01-袖珍葡汉汉葡词典(简体版).mdx',
       'Holanda',
       (def) => {
-        console.log(def);
+        console.log('#stripKey 08-葡汉汉葡：', def);
         assert.isTrue(def.keyText === 'Holanda');
       }
     );

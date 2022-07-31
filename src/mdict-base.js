@@ -11,7 +11,8 @@ import bufferToArrayBuffer from 'buffer-to-arraybuffer';
 
 import common from './common';
 import lzo1x from './lzo-wrapper';
-import { WordMapBuffer } from './wordMapBuffer';
+import { WordBuffer } from './wordBuffer';
+import fs from 'fs'
 import util from './utils'
 
 const UTF_16LE_DECODER = new TextDecoder('utf-16le');
@@ -39,14 +40,13 @@ class MDictBase {
    * mdict constructor
    * @param {string} fname
    * @param {string} passcode
-   * @param {string} mode
+   * @param {object} config
    */
-  constructor(fname, passcode, mode) {
+  constructor(fname, passcode, config = {}) {
     // the mdict file name
     this.fname = fname;
     // the dictionary file decrypt pass code
     this._passcode = passcode;
-    this.mode = mode;
     // the mdict file read offset
     this._offset = 0;
     // the dictionary file extension
@@ -60,6 +60,9 @@ class MDictBase {
     this._headerEndOffset = 0;
     this.header = {};
     this._readHeader();
+
+    this._whetherKeyCaseSensitive = config.keyCaseSensitive || common.isTrue(this.header.keyCaseSensitive)
+    this._whetherStripKey = config.stripKey || common.isTrue(this.header.StripKey)
 
     // -------------------------
     // dict key header section
@@ -90,18 +93,19 @@ class MDictBase {
     // --------------------------
     this._keyBlockStartOffset = 0;
     this._keyBlockEndOffset = 0;
-    if (this.ext === 'mdx' && this.mode === 'mixed') {
-      util.consoleMem('pre map: ')
-      this.keyMap = new WordMapBuffer()
+    if (this.ext === 'mdx') {
+      util.consoleMem('pre buffer: ')
       this.keyList = [];
       // decodeKeyBlock method is very slow, avoid invoke dirctly
       // this method will return the whole words list of the dictionaries file, this is very slow 
       // operation, and you should do this background, or concurrently.
       // NOTE: this method is wrapped by method medict.RangeWords();
-      util.measureTime('decodeKeyBlock', this._decodeKeyBlock.bind(this))
+      util.measureTime('decodeKeyBlock', this._decodeKeyBlock.bind(this), true)
       // this._decodeKeyBlock(true);
 
-      util.consoleMem('after map: ')
+      util.measureTime('_keyToBuffer', this._keyToBuffer.bind(this))
+
+      util.consoleMem('after buffer: ')
       console.log('file: ', this.fname)
       console.log('entris: ', this.keyHeader.entriesNum)
     }
@@ -661,9 +665,16 @@ class MDictBase {
           `cannot determine the compress type: ${kbCompType.toString('hex')}`
         );
       }
-      keyCount += this._splitKeyBlock(
+      const keyBlockRes = this._splitKeyBlock(
         new BufferList(key_block),
+        keep
       );
+      if (keep) {
+        key_list = key_list.concat(keyBlockRes)
+        keyCount += keyBlockRes.length
+      } else {
+        keyCount += keyBlockRes
+      }
       kbStartOfset += compSize;
     }
     assert(keyCount === this.keyHeader.entriesNum);
@@ -671,6 +682,9 @@ class MDictBase {
       this._keyBlockStartOffset + this.keyHeader.keyBlocksTotalSize;
     if (keep) {
       this.keyList = key_list;
+      // console.log('keep: ', keep)
+      // console.log(key_list)
+      debugger
     } else {
       return key_list;
     }
@@ -779,16 +793,15 @@ class MDictBase {
         }
         i += width;
       }
+      // const keyText = this._decoder.decode(
+      //   keyBlock.slice(keyStartIndex + this._numWidth, keyEndIndex)
+      // );
+      // need trim
       const keyText = this._decoder.decode(
         keyBlock.slice(keyStartIndex + this._numWidth, keyEndIndex)
-      );
+      ).trim();
       keyStartIndex = keyEndIndex + width;
 
-      if (this.ext === 'mdx' && this.mode === 'mixed') {
-        const regexp = common.REGEXP_STRIPKEY[this.ext]
-        const key = (keyText ?? '').replace(regexp, '$1').toLowerCase()
-        this.keyMap.insert(key, keyText, recordStartOffset)
-      }
       keyCount++
       if (needList) {
         keyList.push({ recordStartOffset, keyText });
@@ -1143,6 +1156,41 @@ class MDictBase {
 
   _readBuffer(start, length) {
     return readChunk.sync(this.fname, start, length);
+  }
+
+  // store key to wordBuffer
+  _keyToBuffer() {
+    const ruleKeyFn = ((key = '') => {
+      if (this._whetherStripKey) {
+        key = key.replace(common.REGEXP_STRIPKEY[this.ext], '$1')
+      }
+      if (!this._whetherKeyCaseSensitive) {
+        key = key.toLowerCase()
+      }
+      return key
+    }).bind(this)
+
+    this.keyBuffer = new WordBuffer(undefined, ruleKeyFn)
+
+    const list = [...this.keyList]
+    // 排序之前记录下，每个单词的结束位置，因为排序之后顺序就乱了，buffer 里就不能再根据下一个单词判断了
+    list.map((v, i) => {
+      if (list[i - 1]) {
+        list[i - 1].nextRecordStartOffset = v.recordStartOffset
+      }
+    })
+    // 排序
+    list.sort((a, b) => {
+      let aKey = ruleKeyFn(a.keyText)
+      let bKey = ruleKeyFn(b.keyText)
+      if (aKey > bKey) return 1
+      if (aKey === bKey) return 0
+      return -1
+    })
+
+    for (let i = 0; i < list.length; i++) {
+      this.keyBuffer.insert(list[i].keyText, list[i].recordStartOffset, list[i].nextRecordStartOffset)
+    }
   }
 }
 
