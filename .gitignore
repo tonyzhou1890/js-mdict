@@ -10,3 +10,4 @@ build
 /coverage/*
 yarn-error.log
 test/temp-debug.spec.js
+./*.txt

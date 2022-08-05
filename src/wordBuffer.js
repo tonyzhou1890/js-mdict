@@ -68,7 +68,7 @@ export class WordBuffer {
     }
 
     res.keyText = util.textDecode(this.buffer, start, offset - start)
-    console.log('res: ', res)
+    // console.log('res: ', res)
     return res
   }
 
