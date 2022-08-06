@@ -4,7 +4,7 @@ this is forked form [js-mdict](https://github.com/terasum/js-mdict). Very Thanks
 
 ## Changes
 
-### v2
+### v10
 
 * if ext of file is mdx, the keys will be cached in memory.
 

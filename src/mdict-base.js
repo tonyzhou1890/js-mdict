@@ -61,8 +61,8 @@ class MDictBase {
     this.header = {};
     this._readHeader();
 
-    this._whetherKeyCaseSensitive = config.keyCaseSensitive || common.isTrue(this.header.keyCaseSensitive)
-    this._whetherStripKey = config.stripKey || common.isTrue(this.header.StripKey)
+    this._whetherKeyCaseSensitive = config.keyCaseSensitive ?? common.isTrue(this.header.keyCaseSensitive)
+    this._whetherStripKey = config.stripKey ?? common.isTrue(this.header.StripKey)
 
     // -------------------------
     // dict key header section

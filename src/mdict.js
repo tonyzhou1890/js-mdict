@@ -129,7 +129,7 @@ class Mdict extends MdictBase {
 
   _isKeyCaseSensitive() {
     return (
-      this.searchOptions.keyCaseSensitive ||
+      this.searchOptions.keyCaseSensitive ??
       common.isTrue(this.header.KeyCaseSensitive)
     );
   }
